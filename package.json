@@ -1,0 +1,9 @@
+{
+  "name": "@dylanlan/darkages-discord-guild-chat",
+  "packageManager": "yarn@4.2.2",
+  "dependencies": {
+    "darkages": "^1.0.4",
+    "discord.js": "^14.17.3",
+    "dotenv": "^16.4.7"
+  }
+}
