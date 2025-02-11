@@ -84,6 +84,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@dylanlan/darkages-discord-guild-chat@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@dylanlan/darkages-discord-guild-chat@workspace:."
+  dependencies:
+    darkages: "npm:^1.0.4"
+    discord.js: "npm:^14.17.3"
+    dotenv: "npm:^16.4.7"
+  languageName: unknown
+  linkType: soft
+
 "@sapphire/async-queue@npm:^1.5.2, @sapphire/async-queue@npm:^1.5.3":
   version: 1.5.5
   resolution: "@sapphire/async-queue@npm:1.5.5"
@@ -153,16 +163,6 @@ __metadata:
   checksum: 10/2c72768de3d28278c7c9ffd81a298b26f87ecdfe94415084f339e6632f089b43fe039f2c93f612bcb5ffe447238373d93b2e8c90894cba6cfb0ac7a74616f8b9
   languageName: node
   linkType: hard
-
-"da-discord-test@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "da-discord-test@workspace:."
-  dependencies:
-    darkages: "npm:^1.0.4"
-    discord.js: "npm:^14.17.3"
-    dotenv: "npm:^16.4.7"
-  languageName: unknown
-  linkType: soft
 
 "darkages@npm:^1.0.4":
   version: 1.0.4

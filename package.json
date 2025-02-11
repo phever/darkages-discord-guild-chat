@@ -2,6 +2,9 @@
   "name": "@dylanlan/darkages-discord-guild-chat",
   "packageManager": "yarn@4.2.2",
   "license": "MIT",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "darkages": "^1.0.4",
     "discord.js": "^14.17.3",

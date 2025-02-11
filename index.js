@@ -20,12 +20,12 @@ const client = new Darkages.Client(messenger, process.env.MESSENGER_PASSWORD);
 
 
 // Function to send the given message string to the channel configured by the webhook
-function sendToDiscord(message) {
+function sendToDiscord(message, webhookUrl) {
     const body = JSON.stringify({
         content: message
     });
 
-    const request = https.request(process.env.DISCORD_WEBHOOK_URL, {
+    const request = https.request(webhookUrl, {
         method: 'POST',
         headers: {
         'Content-Type': 'application/json',
@@ -47,9 +47,9 @@ client.events.on(0x0A, packet => {
 
     // If it's a guild chat not from the messenger Aisling, then send to discord
     if (message.startsWith('<!') && !message.startsWith(`<!${messenger}`)) {
-        sendToDiscord(message);
+        sendToDiscord(message, process.env.DISCORD_MESSAGES_WEBHOOK_URL);
     } else if (message.startsWith('Sradagan member')) {
-        sendToDiscord(message);
+        sendToDiscord(message, process.env.DISCORD_LOGINS_WEBHOOK_URL);
     }
 
     // TODO: any special whisper commands?
@@ -76,6 +76,7 @@ discordClient.on("messageCreate", (message) => {
     // Ignore messages from bots, to avoid loops
     if (message.author.bot) return;
 
+    // TODO: figure out server-specific display name
     console.log(`Discord message from displayName: ${message.author.displayName} id: ${message.author.id} global name: ${message.author.globalName} discriminator: ${message.author.discriminator} id: ${message.author.id}, in  channel ${message.channel.name}, content: ${message.content}`);
 
     // If the discord message is from the guild chat channel, send it to the game
