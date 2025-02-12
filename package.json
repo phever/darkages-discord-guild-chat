@@ -1,6 +1,5 @@
 {
   "name": "@dylanlan/darkages-discord-guild-chat",
-  "packageManager": "yarn@4.2.2",
   "license": "MIT",
   "scripts": {
     "start": "node index.ts"
