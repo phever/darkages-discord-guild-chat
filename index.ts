@@ -15,6 +15,7 @@ const darkAgesPassword = loadParam("MESSENGER_PASSWORD");
 const discordMessagesUrl = loadParam("DISCORD_MESSAGES_WEBHOOK_URL");
 const discordLoginsUrl = loadParam("DISCORD_LOGINS_WEBHOOK_URL")
 const discordBotToken = loadParam("DISCORD_BOT_TOKEN");
+const discordEchoChannelId = loadParam("DISCORD_ECHO_CHANNEL_ID");
 
 const client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
 
@@ -51,14 +52,23 @@ function sendToDiscord(message: string, webhookUrl: string): void {
 client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => any; }): void => {
     const channel = packet.readByte();
     const message = packet.readString16();
+    let guildChatRegExp = /^.* member .* has entered Temuair$/;
+    let newMemberRegExp = /^.* has a new member! Welcome .* to the clan$/;
 
-    console.log(`In-game message: ${message}`);
+    console.log(`In-game message: '${message}'`);
 
+    // don't force the constant tick to get regexpd
+    if (message === ' ') {
+        return;
     // If it's a guild chat not from the messenger Aisling, then send to discord
-    if (message.startsWith('<!') && !message.startsWith(`<!${darkAgesUsername}`)) {
+    } else if (message.startsWith('<!') && !message.startsWith(`<!${darkAgesUsername}`)) {
         sendToDiscord(message, discordMessagesUrl);
-    } else if (message.startsWith('Sradagan member')) {
+    // Send "entered Temuair" messages to discord
+    } else if (guildChatRegExp.test(message)) {
         sendToDiscord(message, discordLoginsUrl);
+    // Send "New member" messages to discord
+    } else if (newMemberRegExp.test(message)) {
+        sendToDiscord(message, discordLoginsUrl)
     }
 
     // TODO: any special whisper commands?
@@ -89,13 +99,12 @@ discordClient.on("messageCreate", (message) => {
     console.log(`Discord message from displayName: ${message.author.displayName} id: ${message.author.id} global name: ${message.author.globalName} discriminator: ${message.author.discriminator} id: ${message.author.id}, in  channel ${message.channel}, content: ${message.content}`);
 
     // If the discord message is from the guild chat channel, send it to the game
-    if (message.channel.id === 'guild-chat') {
+    if (message.channel.id === discordEchoChannelId) {
         // Remove any non-ascii characters
         const sanitizedMessage = message.content.replace(/[^\x00-\x7F]/g, '');
 
         const whisperMessage = `${message.author.displayName}" ${sanitizedMessage}`;
-        // Maximum 
-        const trimmedMessage = whisperMessage.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH);
+        const trimmedMessage = whisperMessage.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH); // Maximum
 
         const response = new Darkages.Packet(0x19);
         response.writeString8('!'); // name to whisper
@@ -113,5 +122,5 @@ discordClient.on("messageCreate", (message) => {
 // Login the Discord bot
 discordClient.login(discordBotToken).catch(
     (err) => {
-        console.log(err)
+        console.error(err)
 });
