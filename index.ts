@@ -132,6 +132,17 @@ discordClient.on("messageCreate", (message) => {
             }
             messages.push(newMessage);
             sendToDarkAges(messages).then()
+        } else {
+            // no spaces lol
+            let maxLength = MAX_GUILD_CHAT_MESSAGE_LENGTH - message.author.displayName.length - 2
+            let counter = 0
+            while (counter + maxLength <= sanitizedMessage.length) {
+                let newMessage = `${message.author.displayName}" ${sanitizedMessage.substring(counter, counter + maxLength)}`;
+                messages.push(newMessage);
+                counter += maxLength;
+            }
+            messages.push(`${message.author.displayName}" ${sanitizedMessage.substring(counter)}`)
+            sendToDarkAges(messages).then()
         }
     }
 
