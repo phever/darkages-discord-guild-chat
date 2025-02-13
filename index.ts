@@ -29,6 +29,17 @@ function loadParam(key: string): string {
     process.exit(1);
 }
 
+async function sendToDarkAges(messages: string[]): Promise<void> {
+    for (const message of messages) {
+        const response = new Darkages.Packet(0x19);
+        response.writeString8('!'); // name to whisper
+        response.writeString8(message); //message to send
+        client.send(response);
+        // wait 1 second
+        await new Promise((res) => setTimeout(res, 1000));
+    }
+}
+
 // Function to send the given message string to the channel configured by the webhook
 function sendToDiscord(message: string, webhookUrl: string): void {
     const body = JSON.stringify({
@@ -101,21 +112,49 @@ discordClient.on("messageCreate", (message) => {
     // If the discord message is from the guild chat channel, send it to the game
     if (message.channel.id === discordEchoChannelId) {
         // Remove any non-ascii characters
+        const messages = [];
         const sanitizedMessage = message.content.replace(/[^\x00-\x7F]/g, '');
 
         const whisperMessage = `${message.author.displayName}" ${sanitizedMessage}`;
-        const trimmedMessage = whisperMessage.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH); // Maximum
-
-        const response = new Darkages.Packet(0x19);
-        response.writeString8('!'); // name to whisper
-        response.writeString8(trimmedMessage); //message to send
-        client.send(response);
+        if (whisperMessage.length < MAX_GUILD_CHAT_MESSAGE_LENGTH) {
+            sendToDarkAges([whisperMessage]).then()
+        } else if (sanitizedMessage.includes(" ")) {
+            let words = sanitizedMessage.split(" ");
+            let newMessage = `${message.author.displayName}"`;
+            for (const word of words) {
+                // if the word will cause the chat to exceed max length
+                if (newMessage.length + word.length + 1 > MAX_GUILD_CHAT_MESSAGE_LENGTH) {
+                    messages.push(newMessage)
+                    newMessage = `${message.author.displayName}" ${word}`;
+                } else {
+                    newMessage += ` ${word}`;
+                }
+            }
+            messages.push(newMessage);
+            sendToDarkAges(messages).then()
+        } else {
+            // no spaces lol
+            let maxLength = MAX_GUILD_CHAT_MESSAGE_LENGTH - message.author.displayName.length - 2
+            let counter = 0
+            while (counter + maxLength < sanitizedMessage.length) {
+                let newMessage = `${message.author.displayName}" ${sanitizedMessage.substring(counter, counter + maxLength)}`;
+                messages.push(newMessage);
+                counter += maxLength;
+            }
+            messages.push(`${message.author.displayName}" ${sanitizedMessage.substring(counter)}`)
+            sendToDarkAges(messages).then()
+        }
     }
 
     // Roast the water spirit anywhere, lol
     if (message.content.toLowerCase().includes('water spirit')) {
-        // TODO: multiple randomized responses
-        message.channel.send("Water Spirit is moist lol");
+        const responses = [
+            "Water Spirit is moist lol",
+            "Water Spirit sucks, Gatorade Spirit is better",
+            "Look at me I like the lame Water Spirit"
+        ]
+        let rand = Math.floor(Math.random() * responses.length)
+        message.channel.send(responses[rand]);
     }
 });
 

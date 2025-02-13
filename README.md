@@ -12,5 +12,5 @@ It means any guild chat messages in Darkages show up in a discord channel, and a
 - ~~convert to Typescript~~
 - linting / simple tests
 - update README and setup instructions
-- support sending large messages as multiple in-game chats
+- ~~support sending large messages as multiple in-game chats~~
 - swap messenger Aisling
