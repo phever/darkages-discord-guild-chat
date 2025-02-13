@@ -136,7 +136,7 @@ discordClient.on("messageCreate", (message) => {
             // no spaces lol
             let maxLength = MAX_GUILD_CHAT_MESSAGE_LENGTH - message.author.displayName.length - 2
             let counter = 0
-            while (counter + maxLength <= sanitizedMessage.length) {
+            while (counter + maxLength < sanitizedMessage.length) {
                 let newMessage = `${message.author.displayName}" ${sanitizedMessage.substring(counter, counter + maxLength)}`;
                 messages.push(newMessage);
                 counter += maxLength;
