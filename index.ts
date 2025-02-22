@@ -167,7 +167,8 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
     } else if (whisperRegExp.test(message)) {
         for (let messenger of additionalDarkAgesCharacters) {
             if (message.startsWith(messenger)) {
-                sendToDarkAges([message]).then()
+                let messageWithoutWhisperName = message.replace(`${messenger}" `, "");
+                sendToDarkAges([messageWithoutWhisperName]).then()
             }
         }
         // Send "entered Temuair" messages to discord
@@ -183,12 +184,11 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
         }
         sendToDiscord(message, discordGuildMessagesUrl)
         // GM Shouts to discord
+    } else if (gameMasterShoutRegExp.test(message)) {
+        for (let url of discordMessagesUrls) {
+            sendToDiscord(message, url)
+        }
     }
-    // else if (gameMasterShoutRegExp.test(message)) {
-    //     for (let url of discordMessagesUrls) {
-    //         sendToDiscord(message, url)
-    //     }
-    // }
 
     // TODO: any special whisper commands?
 });
