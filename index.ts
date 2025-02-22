@@ -12,17 +12,20 @@ const DOTENV_DELIMITER = ","
 dotenv.config();
 
 // The Aisling that listens and posts to in-game guild chat
-const darkAgesUsername = loadParam("MESSENGER_NAME")[0];
-const darkAgesPassword = loadParam("MESSENGER_PASSWORD")[0];
-const ignoredNames = loadParam("IGNORED_NAMES");
-const discordMessagesUrl = loadParam("DISCORD_MESSAGES_WEBHOOK_URLS");
-const discordLoginsUrl = loadParam("DISCORD_LOGINS_WEBHOOK_URLS")
-const discordBotToken = loadParam("DISCORD_BOT_TOKEN")[0];
-const discordEchoChannelId = loadParam("DISCORD_ECHO_CHANNEL_IDS");
+const darkAgesUsername = loadParam("MESSENGER_NAME");
+const darkAgesPassword = loadParam("MESSENGER_PASSWORD");
+// discord webhook urls for messages
+const discordMessagesUrls = loadParams("DISCORD_MESSAGES_WEBHOOK_URLS");
+// same for logins
+const discordLoginsUrls = loadParams("DISCORD_LOGINS_WEBHOOK_URLS")
+// discord channel IDs of channel you want to link
+const discordGuildChannelId = loadParam("DISCORD_GUILD_CHANNEL_ID");
+const discordEchoChannelIds = loadParams("DISCORD_ECHO_CHANNEL_IDS");
+const discordBotToken = loadParam("DISCORD_BOT_TOKEN");
 
 const client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
 
-function loadParam(key: string): string[] {
+function loadParams(key: string): string[] {
     if (process.env[key]) {
         if (process.env[key].includes(DOTENV_DELIMITER)) {
             return process.env[key].split(DOTENV_DELIMITER);
@@ -31,6 +34,15 @@ function loadParam(key: string): string[] {
     }
 
     // return the environment key or exit
+    console.log(`.env key "${key}" not found, please fix this and run again`);
+    process.exit(1);
+}
+
+function loadParam(key: string): string {
+    if (process.env[key]) {
+        return process.env[key];
+    }
+
     console.log(`.env key "${key}" not found, please fix this and run again`);
     process.exit(1);
 }
@@ -131,30 +143,26 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
         return;
     // If it's a guild chat not from the messenger Aisling, then send to discord
     } else if (message.startsWith('<!') && !message.startsWith(`<!${darkAgesUsername}`)) {
-        for (const username of ignoredNames) {
-            if (message.startsWith(username)) {
-                return
-            }
-        }
-        for (let url of discordMessagesUrl) {
+        for (let url of discordMessagesUrls) {
             sendToDiscord(message, url)
         }
     // Send "entered Temuair" messages to discord
     } else if (guildChatRegExp.test(message)) {
-        for (let url of discordLoginsUrl) {
+        for (let url of discordLoginsUrls) {
             sendToDiscord(message, url);
         }
         // Send "New member" messages to discord
     } else if (newMemberRegExp.test(message)) {
-        for (let url of discordMessagesUrl) {
+        for (let url of discordMessagesUrls) {
             sendToDiscord(message, url)
         }
         // GM Shouts to discord
-    } else if (gameMasterShoutRegExp.test(message)) {
-        for (let url of discordMessagesUrl) {
-            sendToDiscord(message, url)
-        }
     }
+    // else if (gameMasterShoutRegExp.test(message)) {
+    //     for (let url of discordMessagesUrls) {
+    //         sendToDiscord(message, url)
+    //     }
+    // }
 
     // TODO: any special whisper commands?
 });
@@ -188,11 +196,12 @@ discordClient.on("messageCreate", (message: OmitPartialGroupDMChannel<Message>) 
         `channel ${message.channel}, content: ${message.content}`);
 
     // If the discord message is from the guild chat channel, send it to the game
-    if (discordEchoChannelId.includes(message.channel.id)) {
+    if (message.channel.id === discordGuildChannelId ||
+        discordEchoChannelIds.includes(message.channel.id)) {
         convertDiscordMessage(message);
     }
 
-    waterSpiritRoast(message);
+    // waterSpiritRoast(message);
 });
 
 // Login the Discord bot
