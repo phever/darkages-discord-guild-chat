@@ -15,7 +15,7 @@ You'll need an admin of the Discord server to setup the integration.
    a) Make sure to copy the bot token value
 
    b) You'll want to give it at least the `Read Message History` and `Send Messages` permissions
-2. Rename the `dotenv` file to `.env`, and fill out its values
+2. Copy the `dotenv` file to `.env`, and fill out its values
 
     a) You can create webhooks for the desired channels by following this guide: https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks
 
