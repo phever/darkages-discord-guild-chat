@@ -149,8 +149,8 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
     let newMemberRegExp = /^.* has a new member! Welcome .* to the clan$/;
     let worldShoutRegExp = /^\[.*]: .*$/;
     let masterRegExp = /^.* has shown to be worth to wear the mantle of Master.$/;
-    let gameMasterShoutRegExp = /^\w! .*$/;
-    let whisperRegExp = /^\w" .*$/;
+    let gameMasterShoutRegExp = /^\w+! .*$/;
+    let whisperRegExp = /^\w+" .*$/;
 
     console.log(`In-game message: '${message}'`);
 
