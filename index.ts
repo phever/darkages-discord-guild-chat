@@ -163,7 +163,8 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
             sendToDiscord(message, url)
         }
         sendToDiscord(message, discordGuildMessagesUrl)
-        whisper(message).then()
+        // todo: make this nicer
+        whisper(message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH)).then()
     } else if (whisperRegExp.test(message)) {
         for (let messenger of additionalDarkAgesCharacters) {
             if (message.startsWith(messenger)) {
