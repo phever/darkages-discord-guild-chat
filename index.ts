@@ -167,7 +167,7 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
     } else if (whisperRegExp.test(message)) {
         for (let messenger of additionalDarkAgesCharacters) {
             if (message.startsWith(messenger)) {
-                sendToDiscord(message, discordGuildMessagesUrl)
+                sendToDarkAges([message]).then()
             }
         }
         // Send "entered Temuair" messages to discord
