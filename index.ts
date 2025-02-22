@@ -18,7 +18,7 @@ const darkAgesPassword = loadParam("MESSENGER_PASSWORD");
 const discordGuildMessagesUrl = loadParam("DISCORD_MESSAGES_GUILD_WEBHOOK_URL");
 const discordMessagesUrls = loadParams("DISCORD_MESSAGES_WEBHOOK_URLS");
 // same for logins
-const discordLoginsUrl = loadParam("DISCORD_LOGINS_GUILD_WEBHOOK_URL");
+const discordGuildLoginsUrl = loadParam("DISCORD_LOGINS_GUILD_WEBHOOK_URL");
 const discordLoginsUrls = loadParams("DISCORD_LOGINS_WEBHOOK_URLS")
 // discord channel IDs of channel you want to link
 const discordGuildChannelId = loadParam("DISCORD_GUILD_CHANNEL_ID");
@@ -154,7 +154,7 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
         for (let url of discordLoginsUrls) {
             sendToDiscord(message, url);
         }
-        sendToDiscord(message, discordGuildMessagesUrl)
+        sendToDiscord(message, discordGuildLoginsUrl)
         // Send "New member" messages to discord
     } else if (newMemberRegExp.test(message)) {
         for (let url of discordMessagesUrls) {
