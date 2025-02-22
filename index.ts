@@ -6,6 +6,7 @@ import { Client, GatewayIntentBits, Message, OmitPartialGroupDMChannel } from "d
 
 // actually 64 max length, 61-64 character messages don't pop up
 const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
+const CHAT_DELAY_MS = 750;
 const DOTENV_DELIMITER = ","
 
 // load config
@@ -14,6 +15,7 @@ dotenv.config();
 // The Aisling that listens and posts to in-game guild chat
 const darkAgesUsername = loadParam("MESSENGER_NAME");
 const darkAgesPassword = loadParam("MESSENGER_PASSWORD");
+const additionalDarkAgesCharacters = loadParams("ADDITIONAL_MESSENGERS")
 // discord webhook urls for messages
 const discordGuildMessagesUrl = loadParam("DISCORD_MESSAGES_GUILD_WEBHOOK_URL");
 const discordMessagesUrls = loadParams("DISCORD_MESSAGES_WEBHOOK_URLS");
@@ -49,14 +51,25 @@ function loadParam(key: string): string {
     process.exit(1);
 }
 
-async function sendToDarkAges(messages: string[]): Promise<void> {
+async function sendToDarkAges(messages: string[], relay = true): Promise<void> {
     for (const message of messages) {
         const response = new Darkages.Packet(0x19);
         response.writeString8('!'); // name to whisper
         response.writeString8(message); //message to send
         client.send(response);
         // wait 1 second
-        await new Promise((res) => setTimeout(res, 1000));
+        await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
+
+        if (relay) {
+            for (let messenger of additionalDarkAgesCharacters) {
+                const response = new Darkages.Packet(0x19);
+                response.writeString8(messenger); // name to whisper
+                response.writeString8(message); //message to send
+                client.send(response);
+                // wait 1 second
+                await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
+            }
+        }
     }
 }
 
@@ -136,7 +149,8 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
     let newMemberRegExp = /^.* has a new member! Welcome .* to the clan$/;
     let worldShoutRegExp = /^\[.*]: .*$/;
     let masterRegExp = /^.* has shown to be worth to wear the mantle of Master.$/;
-    let gameMasterShoutRegExp = /^.*! .*$/;
+    let gameMasterShoutRegExp = /^\w! .*$/;
+    let whisperRegExp = /^\w" .*$/;
 
     console.log(`In-game message: '${message}'`);
 
@@ -149,6 +163,13 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
             sendToDiscord(message, url)
         }
         sendToDiscord(message, discordGuildMessagesUrl)
+    } else if (whisperRegExp.test(message)) {
+        for (let messenger of additionalDarkAgesCharacters) {
+            if (message.startsWith(messenger)) {
+                let newMessage = message.replace(`${messenger}" `, "");
+                sendToDarkAges([newMessage], false).then()
+            }
+        }
     // Send "entered Temuair" messages to discord
     } else if (guildChatRegExp.test(message)) {
         for (let url of discordLoginsUrls) {
