@@ -51,25 +51,25 @@ function loadParam(key: string): string {
     process.exit(1);
 }
 
-async function sendToDarkAges(messages: string[], relay = true): Promise<void> {
+async function whisper(message: string) {
+    for (let messenger of additionalDarkAgesCharacters) {
+        const response = new Darkages.Packet(0x19);
+        response.writeString8(messenger); // name to whisper
+        response.writeString8(message); //message to send
+        client.send(response);
+        // wait
+        await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
+    }
+}
+
+async function sendToDarkAges(messages: string[]): Promise<void> {
     for (const message of messages) {
         const response = new Darkages.Packet(0x19);
         response.writeString8('!'); // name to whisper
         response.writeString8(message); //message to send
         client.send(response);
-        // wait 1 second
+        // wait
         await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
-
-        if (relay) {
-            for (let messenger of additionalDarkAgesCharacters) {
-                const response = new Darkages.Packet(0x19);
-                response.writeString8(messenger); // name to whisper
-                response.writeString8(message); //message to send
-                client.send(response);
-                // wait 1 second
-                await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
-            }
-        }
     }
 }
 
@@ -157,20 +157,20 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => strin
     // don't force the constant tick to get regexpd
     if (message === ' ') {
         return;
-    // If it's a guild chat not from the messenger Aisling, then send to discord
+        // If it's a guild chat not from the messenger Aisling, then send to discord
     } else if (message.startsWith('<!') && !message.startsWith(`<!${darkAgesUsername}`)) {
         for (let url of discordMessagesUrls) {
             sendToDiscord(message, url)
         }
         sendToDiscord(message, discordGuildMessagesUrl)
+        whisper(message).then()
     } else if (whisperRegExp.test(message)) {
         for (let messenger of additionalDarkAgesCharacters) {
             if (message.startsWith(messenger)) {
-                let newMessage = message.replace(`${messenger}" `, "");
-                sendToDarkAges([newMessage], false).then()
+                sendToDiscord(message, discordGuildMessagesUrl)
             }
         }
-    // Send "entered Temuair" messages to discord
+        // Send "entered Temuair" messages to discord
     } else if (guildChatRegExp.test(message)) {
         for (let url of discordLoginsUrls) {
             sendToDiscord(message, url);
