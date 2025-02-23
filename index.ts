@@ -2,9 +2,12 @@ import dotenv from "dotenv";
 import https from "https";
 // @ts-ignore until we update darkages package to typescript
 import Darkages from 'darkages';
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client, GatewayIntentBits, Message, OmitPartialGroupDMChannel } from "discord.js";
 
-const MAX_GUILD_CHAT_MESSAGE_LENGTH = 64;
+// actually 64 max length, 61-64 character messages don't pop up
+const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
+const CHAT_DELAY_MS = 750;
+const DOTENV_DELIMITER = ","
 
 // load config
 dotenv.config();
@@ -12,21 +15,51 @@ dotenv.config();
 // The Aisling that listens and posts to in-game guild chat
 const darkAgesUsername = loadParam("MESSENGER_NAME");
 const darkAgesPassword = loadParam("MESSENGER_PASSWORD");
-const discordMessagesUrl = loadParam("DISCORD_MESSAGES_WEBHOOK_URL");
-const discordLoginsUrl = loadParam("DISCORD_LOGINS_WEBHOOK_URL")
+const additionalDarkAgesCharacters = loadParams("ADDITIONAL_MESSENGERS")
+// discord webhook urls for messages
+const discordGuildMessagesUrl = loadParam("DISCORD_MESSAGES_GUILD_WEBHOOK_URL");
+const discordMessagesUrls = loadParams("DISCORD_MESSAGES_WEBHOOK_URLS");
+// same for logins
+const discordGuildLoginsUrl = loadParam("DISCORD_LOGINS_GUILD_WEBHOOK_URL");
+const discordLoginsUrls = loadParams("DISCORD_LOGINS_WEBHOOK_URLS")
+// discord channel IDs of channel you want to link
+const discordGuildChannelId = loadParam("DISCORD_GUILD_CHANNEL_ID");
+const discordEchoChannelIds = loadParams("DISCORD_ECHO_CHANNEL_IDS");
 const discordBotToken = loadParam("DISCORD_BOT_TOKEN");
-const discordEchoChannelId = loadParam("DISCORD_ECHO_CHANNEL_ID");
 
 const client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
+
+function loadParams(key: string): string[] {
+    if (process.env[key]) {
+        if (process.env[key].includes(DOTENV_DELIMITER)) {
+            return process.env[key].split(DOTENV_DELIMITER);
+        }
+        return [process.env[key]];
+    }
+
+    // return the environment key or exit
+    console.log(`.env key "${key}" not found, please fix this and run again`);
+    process.exit(1);
+}
 
 function loadParam(key: string): string {
     if (process.env[key]) {
         return process.env[key];
     }
 
-    // return the environment key or exit
-    console.log(`dotenv key "${key}" not found, please fix this and run again`);
+    console.log(`.env key "${key}" not found, please fix this and run again`);
     process.exit(1);
+}
+
+async function whisper(message: string) {
+    for (let messenger of additionalDarkAgesCharacters) {
+        const response = new Darkages.Packet(0x19);
+        response.writeString8(messenger); // name to whisper
+        response.writeString8(message); //message to send
+        client.send(response);
+        // wait
+        await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
+    }
 }
 
 async function sendToDarkAges(messages: string[]): Promise<void> {
@@ -35,8 +68,8 @@ async function sendToDarkAges(messages: string[]): Promise<void> {
         response.writeString8('!'); // name to whisper
         response.writeString8(message); //message to send
         client.send(response);
-        // wait 1 second
-        await new Promise((res) => setTimeout(res, 1000));
+        // wait
+        await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
     }
 }
 
@@ -58,28 +91,104 @@ function sendToDiscord(message: string, webhookUrl: string): void {
     request.end();
 }
 
+function waterSpiritRoast(message: OmitPartialGroupDMChannel<Message>): void {
+    // Roast the water spirit anywhere, lol
+    if (message.content.toLowerCase().includes('water spirit')) {
+        const responses = [
+            "Water Spirit is moist lol",
+            "Water Spirit sucks, Gatorade Spirit is better",
+            "Look at me I like the lame Water Spirit"
+        ]
+        let rand = Math.floor(Math.random() * responses.length)
+        message.channel.send(responses[rand]);
+    }
+}
+
+function convertDiscordMessage(message: OmitPartialGroupDMChannel<Message>): void {
+    // Remove any non-ascii characters
+    const messages = [];
+    const sanitizedMessage = message.content.replace(/[^\x00-\x7F]/g, '');
+
+    const whisperMessage = `${message.author.displayName}" ${sanitizedMessage}`;
+    if (whisperMessage.length <= MAX_GUILD_CHAT_MESSAGE_LENGTH) {
+        sendToDarkAges([whisperMessage]).then()
+    } else if (sanitizedMessage.includes(" ")) {
+        let words = sanitizedMessage.split(" ");
+        let newMessage = `${message.author.displayName}"`;
+        for (const word of words) {
+            // if the word will cause the chat to exceed max length
+            if (newMessage.length + word.length + 1 > MAX_GUILD_CHAT_MESSAGE_LENGTH) {
+                messages.push(newMessage)
+                newMessage = `${message.author.displayName}" ${word}`;
+            } else {
+                newMessage += ` ${word}`;
+            }
+        }
+        messages.push(newMessage);
+        sendToDarkAges(messages).then()
+    } else {
+        // no spaces lol
+        let maxLength = MAX_GUILD_CHAT_MESSAGE_LENGTH - message.author.displayName.length - 2
+        let counter = 0
+        while (counter + maxLength < sanitizedMessage.length) {
+            let newMessage = `${message.author.displayName}" ${sanitizedMessage.substring(counter, counter + maxLength)}`;
+            messages.push(newMessage);
+            counter += maxLength;
+        }
+        messages.push(`${message.author.displayName}" ${sanitizedMessage.substring(counter)}`)
+        sendToDarkAges(messages).then()
+    }
+}
+
 
 // Listen for whispers and guild chats in-game
-client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => any; }): void => {
+client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => string; }): void => {
     const channel = packet.readByte();
     const message = packet.readString16();
     let guildChatRegExp = /^.* member .* has entered Temuair$/;
     let newMemberRegExp = /^.* has a new member! Welcome .* to the clan$/;
+    let worldShoutRegExp = /^\[.*]: .*$/;
+    let masterRegExp = /^.* has shown to be worth to wear the mantle of Master.$/;
+    let gameMasterShoutRegExp = /^\w+! .*$/;
+    let whisperRegExp = /^\w+" .*$/;
 
     console.log(`In-game message: '${message}'`);
 
     // don't force the constant tick to get regexpd
     if (message === ' ') {
         return;
-    // If it's a guild chat not from the messenger Aisling, then send to discord
+        // If it's a guild chat not from the messenger Aisling, then send to discord
     } else if (message.startsWith('<!') && !message.startsWith(`<!${darkAgesUsername}`)) {
-        sendToDiscord(message, discordMessagesUrl);
-    // Send "entered Temuair" messages to discord
+        for (let url of discordMessagesUrls) {
+            sendToDiscord(message, url)
+        }
+        sendToDiscord(message, discordGuildMessagesUrl)
+        // todo: make this nicer
+        whisper(message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH)).then()
+    } else if (whisperRegExp.test(message)) {
+        for (let messenger of additionalDarkAgesCharacters) {
+            if (message.startsWith(messenger)) {
+                let messageWithoutWhisperName = message.replace(`${messenger}" `, "");
+                sendToDarkAges([messageWithoutWhisperName]).then()
+            }
+        }
+        // Send "entered Temuair" messages to discord
     } else if (guildChatRegExp.test(message)) {
-        sendToDiscord(message, discordLoginsUrl);
-    // Send "New member" messages to discord
+        for (let url of discordLoginsUrls) {
+            sendToDiscord(message, url);
+        }
+        sendToDiscord(message, discordGuildLoginsUrl)
+        // Send "New member" messages to discord
     } else if (newMemberRegExp.test(message)) {
-        sendToDiscord(message, discordLoginsUrl)
+        for (let url of discordMessagesUrls) {
+            sendToDiscord(message, url)
+        }
+        sendToDiscord(message, discordGuildMessagesUrl)
+        // GM Shouts to discord
+    } else if (gameMasterShoutRegExp.test(message)) {
+        for (let url of discordMessagesUrls) {
+            sendToDiscord(message, url)
+        }
     }
 
     // TODO: any special whisper commands?
@@ -87,6 +196,7 @@ client.events.on(0x0A, (packet: { readByte: () => any; readString16: () => any; 
 
 // Login the messenger Aisling in Darkages
 client.connect();
+
 
 const discordClient = new Client({
     intents: [
@@ -102,64 +212,33 @@ discordClient.once("ready", () => {
 });
 
 // Listen for discord messages
-discordClient.on("messageCreate", (message) => {
+discordClient.on("messageCreate", (message: OmitPartialGroupDMChannel<Message>) => {
     // Ignore messages from bots, to avoid loops
     if (message.author.bot) return;
 
     // TODO: figure out server-specific display name
-    console.log(`Discord message from displayName: ${message.author.displayName} id: ${message.author.id} global name: ${message.author.globalName} discriminator: ${message.author.discriminator} id: ${message.author.id}, in  channel ${message.channel}, content: ${message.content}`);
+    console.log(`Discord message from displayName: ${message.author.displayName} ` +
+        `id: ${message.author.id} global name: ${message.author.globalName} ` +
+        `discriminator: ${message.author.discriminator} id: ${message.author.id}, in ` +
+        `channel ${message.channel}, content: ${message.content}`);
 
     // If the discord message is from the guild chat channel, send it to the game
-    if (message.channel.id === discordEchoChannelId) {
-        // Remove any non-ascii characters
-        const messages = [];
-        const sanitizedMessage = message.content.replace(/[^\x00-\x7F]/g, '');
+    if (discordEchoChannelIds.includes(message.channel.id)) {
+        convertDiscordMessage(message);
+    }
 
-        const whisperMessage = `${message.author.displayName}" ${sanitizedMessage}`;
-        if (whisperMessage.length < MAX_GUILD_CHAT_MESSAGE_LENGTH) {
-            sendToDarkAges([whisperMessage]).then()
-        } else if (sanitizedMessage.includes(" ")) {
-            let words = sanitizedMessage.split(" ");
-            let newMessage = `${message.author.displayName}"`;
-            for (const word of words) {
-                // if the word will cause the chat to exceed max length
-                if (newMessage.length + word.length + 1 > MAX_GUILD_CHAT_MESSAGE_LENGTH) {
-                    messages.push(newMessage)
-                    newMessage = `${message.author.displayName}" ${word}`;
-                } else {
-                    newMessage += ` ${word}`;
-                }
-            }
-            messages.push(newMessage);
-            sendToDarkAges(messages).then()
-        } else {
-            // no spaces lol
-            let maxLength = MAX_GUILD_CHAT_MESSAGE_LENGTH - message.author.displayName.length - 2
-            let counter = 0
-            while (counter + maxLength < sanitizedMessage.length) {
-                let newMessage = `${message.author.displayName}" ${sanitizedMessage.substring(counter, counter + maxLength)}`;
-                messages.push(newMessage);
-                counter += maxLength;
-            }
-            messages.push(`${message.author.displayName}" ${sanitizedMessage.substring(counter)}`)
-            sendToDarkAges(messages).then()
+    if (discordGuildChannelId === message.channel.id) {
+        for (let channelUrl of discordMessagesUrls) {
+            sendToDiscord(`\`${message.author.displayName}:\` ${message.content}`, channelUrl)
         }
+        convertDiscordMessage(message);
     }
 
-    // Roast the water spirit anywhere, lol
-    if (message.content.toLowerCase().includes('water spirit')) {
-        const responses = [
-            "Water Spirit is moist lol",
-            "Water Spirit sucks, Gatorade Spirit is better",
-            "Look at me I like the lame Water Spirit"
-        ]
-        let rand = Math.floor(Math.random() * responses.length)
-        message.channel.send(responses[rand]);
-    }
+    // waterSpiritRoast(message);
 });
 
 // Login the Discord bot
 discordClient.login(discordBotToken).catch(
     (err) => {
         console.error(err)
-});
+    });
