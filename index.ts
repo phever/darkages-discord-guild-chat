@@ -107,20 +107,20 @@ function waterSpiritRoast(message: OmitPartialGroupDMChannel<Message>): void {
 function convertDiscordMessage(message: OmitPartialGroupDMChannel<Message>): void {
     // Remove any non-ascii characters
     const messages = [];
-    const displayName = message.author.displayName.replace(/[^\x00-\x7F]/g, '');
+    const sanitizedDisplayName = message.author.displayName.replace(/[^\x00-\x7F]/g, '').trim();
     const sanitizedMessage = message.content.replace(/[^\x00-\x7F]/g, '');
 
-    const whisperMessage = `${displayName}" ${sanitizedMessage}`;
+    const whisperMessage = `${sanitizedDisplayName}" ${sanitizedMessage}`;
     if (whisperMessage.length <= MAX_GUILD_CHAT_MESSAGE_LENGTH) {
         sendToDarkAges([whisperMessage]).then()
     } else if (sanitizedMessage.includes(" ")) {
         let words = sanitizedMessage.split(" ");
-        let newMessage = `${displayName}"`;
+        let newMessage = `${sanitizedDisplayName}"`;
         for (const word of words) {
             // if the word will cause the chat to exceed max length
             if (newMessage.length + word.length + 1 > MAX_GUILD_CHAT_MESSAGE_LENGTH) {
                 messages.push(newMessage)
-                newMessage = `${displayName}" ${word}`;
+                newMessage = `${sanitizedDisplayName}" ${word}`;
             } else {
                 newMessage += ` ${word}`;
             }
@@ -129,14 +129,14 @@ function convertDiscordMessage(message: OmitPartialGroupDMChannel<Message>): voi
         sendToDarkAges(messages).then()
     } else {
         // no spaces lol
-        let maxLength = MAX_GUILD_CHAT_MESSAGE_LENGTH - displayName.length - 2
+        let maxLength = MAX_GUILD_CHAT_MESSAGE_LENGTH - sanitizedDisplayName.length - 2
         let counter = 0
         while (counter + maxLength < sanitizedMessage.length) {
-            let newMessage = `${displayName}" ${sanitizedMessage.substring(counter, counter + maxLength)}`;
+            let newMessage = `${sanitizedDisplayName}" ${sanitizedMessage.substring(counter, counter + maxLength)}`;
             messages.push(newMessage);
             counter += maxLength;
         }
-        messages.push(`${displayName}" ${sanitizedMessage.substring(counter)}`)
+        messages.push(`${sanitizedDisplayName}" ${sanitizedMessage.substring(counter)}`)
         sendToDarkAges(messages).then()
     }
 }
