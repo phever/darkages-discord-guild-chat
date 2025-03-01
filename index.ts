@@ -122,9 +122,7 @@ function convertDiscordMessage(
     let gifWords = sanitizedMessage
       .replace("https://tenor.com/view/", "")
       .split("-");
-    gifWords.filter((x) => {
-      return x !== "gif" && isNaN(Number(x));
-    });
+    gifWords = gifWords.filter((x) => x !== "gif" && isNaN(Number(x)));
     sanitizedMessage = gifWords.join("-") + ".gif";
   }
 
