@@ -13,6 +13,7 @@ import {
 const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
 const CHAT_DELAY_MS = 1000;
 const DOTENV_DELIMITER = ",";
+const SANTITIZE_REGEXP = /[^\x00-\x7F]/g;
 
 // load config
 dotenv.config();
@@ -115,15 +116,25 @@ function convertDiscordMessage(
   // Remove any non-ascii characters
   const messages = [];
   const sanitizedDisplayName = message.author.displayName
-    .replace(/[^\x00-\x7F]/g, "")
+    .replace(SANTITIZE_REGEXP, "")
     .trim();
-  let sanitizedMessage = message.content.replace(/[^\x00-\x7F]/g, "");
+  let sanitizedMessage = message.content.replace(SANTITIZE_REGEXP, "");
   if (sanitizedMessage.includes("https://tenor.com/view/")) {
     let gifWords = sanitizedMessage
       .replace("https://tenor.com/view/", "")
       .split("-");
     gifWords = gifWords.filter((x) => x !== "gif" && isNaN(Number(x)));
     sanitizedMessage = gifWords.join("-") + ".gif";
+  }
+  if (message.attachments.size > 0) {
+    for (let attachment of message.attachments.values()) {
+      if (attachment.title) {
+        sanitizedMessage += `${attachment.title.replace(SANTITIZE_REGEXP, "")} `;
+      } else {
+        sanitizedMessage += `${attachment.name.replace(SANTITIZE_REGEXP, "")} `;
+      }
+    }
+    sanitizedMessage = sanitizedMessage.trim();
   }
 
   const whisperMessage = `${sanitizedDisplayName}" ${sanitizedMessage}`;
