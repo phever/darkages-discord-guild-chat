@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import https from "https";
 // @ts-ignore until we update darkages package to typescript
 import Darkages from "darkages";
 import {
@@ -10,10 +9,10 @@ import {
 } from "discord.js";
 import { loadParam, loadParams } from "./functions/helpers";
 import { whisper, sendToDarkAges } from "./functions/darkages";
+import { convertDiscordMessage, sendToDiscord } from "./functions/discord";
 
 // actually 64 max length, 61-64 character messages don't pop up
 const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
-const SANTITIZE_REGEXP = /[^\x00-\x7F]/g;
 
 // load config
 dotenv.config();
@@ -35,98 +34,6 @@ const discordBotToken = loadParam("DISCORD_BOT_TOKEN");
 
 const client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
 var lastTick = Date.now();
-
-// Function to send the given message string to the channel configured by the webhook
-function sendToDiscord(message: string, webhookUrl: string): void {
-  const body = JSON.stringify({
-    content: message,
-  });
-
-  const request = https.request(webhookUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(body),
-    },
-  });
-
-  request.write(body);
-  request.end();
-}
-
-function waterSpiritRoast(message: OmitPartialGroupDMChannel<Message>): void {
-  // Roast the water spirit anywhere, lol
-  if (message.content.toLowerCase().includes("water spirit")) {
-    const responses = [
-      "Water Spirit is moist lol",
-      "Water Spirit sucks, Gatorade Spirit is better",
-      "Look at me I like the lame Water Spirit",
-    ];
-    let rand = Math.floor(Math.random() * responses.length);
-    message.channel.send(responses[rand]);
-  }
-}
-
-function convertDiscordMessage(
-  message: OmitPartialGroupDMChannel<Message>,
-): void {
-  // Remove any non-ascii characters
-  const messages = [];
-  const sanitizedDisplayName = message.author.displayName
-    .replace(SANTITIZE_REGEXP, "")
-    .trim();
-  let sanitizedMessage = message.content.replace(SANTITIZE_REGEXP, "");
-  if (sanitizedMessage.includes("https://tenor.com/view/")) {
-    let gifWords = sanitizedMessage
-      .replace("https://tenor.com/view/", "")
-      .split("-");
-    gifWords = gifWords.filter((x) => x !== "gif" && isNaN(Number(x)));
-    sanitizedMessage = gifWords.join("-") + ".gif";
-  }
-  if (message.attachments.size > 0) {
-    for (let attachment of message.attachments.values()) {
-      if (attachment.title) {
-        sanitizedMessage += `${attachment.title.replace(SANTITIZE_REGEXP, "")} `;
-      } else {
-        sanitizedMessage += `${attachment.name.replace(SANTITIZE_REGEXP, "")} `;
-      }
-    }
-    sanitizedMessage = sanitizedMessage.trim();
-  }
-
-  const whisperMessage = `${sanitizedDisplayName}" ${sanitizedMessage}`;
-  if (whisperMessage.length <= MAX_GUILD_CHAT_MESSAGE_LENGTH) {
-    sendToDarkAges([whisperMessage], client).then();
-  } else if (sanitizedMessage.includes(" ")) {
-    let words = sanitizedMessage.split(" ");
-    let newMessage = `${sanitizedDisplayName}"`;
-    for (const word of words) {
-      // if the word will cause the chat to exceed max length
-      if (newMessage.length + word.length + 1 > MAX_GUILD_CHAT_MESSAGE_LENGTH) {
-        messages.push(newMessage);
-        newMessage = `${sanitizedDisplayName}" ${word}`;
-      } else {
-        newMessage += ` ${word}`;
-      }
-    }
-    messages.push(newMessage);
-    sendToDarkAges(messages, client).then();
-  } else {
-    // no spaces lol
-    let maxLength =
-      MAX_GUILD_CHAT_MESSAGE_LENGTH - sanitizedDisplayName.length - 2;
-    let counter = 0;
-    while (counter + maxLength < sanitizedMessage.length) {
-      let newMessage = `${sanitizedDisplayName}" ${sanitizedMessage.substring(counter, counter + maxLength)}`;
-      messages.push(newMessage);
-      counter += maxLength;
-    }
-    messages.push(
-      `${sanitizedDisplayName}" ${sanitizedMessage.substring(counter)}`,
-    );
-    sendToDarkAges(messages, client).then();
-  }
-}
 
 // Listen for whispers and guild chats in-game
 client.events.on(
@@ -157,8 +64,8 @@ client.events.on(
         sendToDiscord(message, url);
       }
       sendToDiscord(message, discordGuildMessagesUrl);
-      // todo: make this nicer
       whisper(
+        // todo: make this nicer
         message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH),
         client,
         additionalDarkAgesCharacters,
@@ -225,7 +132,7 @@ discordClient.on(
 
     // If the discord message is from the guild chat channel, send it to the game
     if (discordEchoChannelIds.includes(message.channel.id)) {
-      convertDiscordMessage(message);
+      convertDiscordMessage(message, client);
     }
 
     if (discordGuildChannelId === message.channel.id) {
@@ -235,7 +142,7 @@ discordClient.on(
           channelUrl,
         );
       }
-      convertDiscordMessage(message);
+      convertDiscordMessage(message, client);
     }
 
     // waterSpiritRoast(message);
