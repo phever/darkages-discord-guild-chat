@@ -8,12 +8,8 @@ import {
   OmitPartialGroupDMChannel,
 } from "discord.js";
 import { loadParam, loadParams } from "./functions/helpers";
-import { whisper, sendToDarkAges } from "./functions/darkages";
-import {
-  convertDiscordMessage,
-  sendToDiscord,
-  waterSpiritRoast,
-} from "./functions/discord";
+import { guildChat, sendToDarkAges, whisper } from "./functions/darkages";
+import { sendToDiscord, waterSpiritRoast } from "./functions/discord";
 
 // actually 64 max length, 61-64 character messages don't pop up
 const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
@@ -84,7 +80,7 @@ function darkAgesClientConfig(darkAgesClient: Darkages.Client): void {
                 `${messenger}" `,
                 "",
               );
-              sendToDarkAges(messageWithoutWhisperName, darkAgesClient).then();
+              guildChat(messageWithoutWhisperName, darkAgesClient).then();
             }
           }
         }
@@ -161,7 +157,7 @@ discordClient.on(
 
     // If the discord message is from the guild chat channel, send it to the game
     if (discordEchoChannelIds.includes(message.channel.id)) {
-      convertDiscordMessage(message, client);
+      sendToDarkAges(message, client);
     }
 
     if (discordGuildChannelId === message.channel.id) {
@@ -171,7 +167,7 @@ discordClient.on(
           channelUrl,
         );
       }
-      convertDiscordMessage(message, client);
+      sendToDarkAges(message, client);
       waterSpiritRoast(message); // roast in guild-chat
     }
   },
