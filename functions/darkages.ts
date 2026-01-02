@@ -5,29 +5,25 @@ const CHAT_DELAY_MS = 1000;
 
 export async function whisper(
   message: string,
+  messenger: string,
   client: Darkages.Client,
-  additionalDarkAgesCharacters: string[],
 ): Promise<void> {
-  for (let messenger of additionalDarkAgesCharacters) {
-    const response = new Darkages.Packet(0x19);
-    response.writeString8(messenger); // name to whisper
-    response.writeString8(message); //message to send
-    client.send(response);
-    // wait
-    await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
-  }
+  const response = new Darkages.Packet(0x19);
+  response.writeString8(messenger); // name to whisper
+  response.writeString8(message); //message to send
+  client.send(response);
+  // wait
+  await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
 }
 
 export async function sendToDarkAges(
-  messages: string[],
+  message: string,
   client: Darkages.Client,
 ): Promise<void> {
-  for (const message of messages) {
-    const response = new Darkages.Packet(0x19);
-    response.writeString8("!"); // name to whisper
-    response.writeString8(message); //message to send
-    client.send(response);
-    // wait
-    await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
-  }
+  const response = new Darkages.Packet(0x19);
+  response.writeString8("!"); // name to whisper
+  response.writeString8(message); //message to send
+  client.send(response);
+  // wait
+  await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
 }

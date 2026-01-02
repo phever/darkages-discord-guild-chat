@@ -37,7 +37,7 @@ export function convertDiscordMessage(
 
   const whisperMessage = `${sanitizedDisplayName}" ${sanitizedMessage}`;
   if (whisperMessage.length <= MAX_GUILD_CHAT_MESSAGE_LENGTH) {
-    sendToDarkAges([whisperMessage], client).then();
+    sendToDarkAges(whisperMessage, client).then();
   } else if (sanitizedMessage.includes(" ")) {
     let words = sanitizedMessage.split(" ");
     let newMessage = `${sanitizedDisplayName}"`;
@@ -50,8 +50,7 @@ export function convertDiscordMessage(
         newMessage += ` ${word}`;
       }
     }
-    messages.push(newMessage);
-    sendToDarkAges(messages, client).then();
+    sendToDarkAges(newMessage, client).then();
   } else {
     // no spaces lol
     let maxLength =
@@ -62,10 +61,8 @@ export function convertDiscordMessage(
       messages.push(newMessage);
       counter += maxLength;
     }
-    messages.push(
-      `${sanitizedDisplayName}" ${sanitizedMessage.substring(counter)}`,
-    );
-    sendToDarkAges(messages, client).then();
+    let newMessage = `${sanitizedDisplayName}" ${sanitizedMessage.substring(counter)}`;
+    sendToDarkAges(newMessage, client).then();
   }
 }
 

@@ -64,17 +64,24 @@ client.events.on(
         sendToDiscord(message, url);
       }
       sendToDiscord(message, discordGuildMessagesUrl);
-      whisper(
-        // todo: make this nicer
-        message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH),
-        client,
-        additionalDarkAgesCharacters,
-      ).then();
+      for (let messenger of additionalDarkAgesCharacters) {
+        whisper(
+          // todo: make this nicer
+          message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH),
+          darkAgesUsername,
+          client,
+        ).then();
+      }
     } else if (whisperRegExp.test(message)) {
       for (let messenger of additionalDarkAgesCharacters) {
         if (message.startsWith(messenger)) {
-          let messageWithoutWhisperName = message.replace(`${messenger}" `, "");
-          sendToDarkAges([messageWithoutWhisperName], client).then();
+          for (let messenger of additionalDarkAgesCharacters) {
+            let messageWithoutWhisperName = message.replace(
+              `${messenger}" `,
+              "",
+            );
+            sendToDarkAges(messageWithoutWhisperName, client).then();
+          }
         }
       }
       // Send "entered Temuair" messages to discord
