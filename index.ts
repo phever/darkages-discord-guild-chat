@@ -8,11 +8,11 @@ import {
   Message,
   OmitPartialGroupDMChannel,
 } from "discord.js";
+import { loadParam, loadParams } from "./functions/helpers";
+import { whisper, sendToDarkAges } from "./functions/darkages";
 
 // actually 64 max length, 61-64 character messages don't pop up
 const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
-const CHAT_DELAY_MS = 1000;
-const DOTENV_DELIMITER = ",";
 const SANTITIZE_REGEXP = /[^\x00-\x7F]/g;
 
 // load config
@@ -34,50 +34,7 @@ const discordEchoChannelIds = loadParams("DISCORD_ECHO_CHANNEL_IDS");
 const discordBotToken = loadParam("DISCORD_BOT_TOKEN");
 
 const client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
-
-function loadParams(key: string): string[] {
-  if (process.env[key]) {
-    if (process.env[key].includes(DOTENV_DELIMITER)) {
-      return process.env[key].split(DOTENV_DELIMITER);
-    }
-    return [process.env[key]];
-  }
-
-  // return the environment key or exit
-  console.log(`.env key "${key}" not found, please fix this and run again`);
-  process.exit(1);
-}
-
-function loadParam(key: string): string {
-  if (process.env[key]) {
-    return process.env[key];
-  }
-
-  console.log(`.env key "${key}" not found, please fix this and run again`);
-  process.exit(1);
-}
-
-async function whisper(message: string) {
-  for (let messenger of additionalDarkAgesCharacters) {
-    const response = new Darkages.Packet(0x19);
-    response.writeString8(messenger); // name to whisper
-    response.writeString8(message); //message to send
-    client.send(response);
-    // wait
-    await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
-  }
-}
-
-async function sendToDarkAges(messages: string[]): Promise<void> {
-  for (const message of messages) {
-    const response = new Darkages.Packet(0x19);
-    response.writeString8("!"); // name to whisper
-    response.writeString8(message); //message to send
-    client.send(response);
-    // wait
-    await new Promise((res) => setTimeout(res, CHAT_DELAY_MS));
-  }
-}
+var lastTick = Date.now();
 
 // Function to send the given message string to the channel configured by the webhook
 function sendToDiscord(message: string, webhookUrl: string): void {
@@ -139,7 +96,7 @@ function convertDiscordMessage(
 
   const whisperMessage = `${sanitizedDisplayName}" ${sanitizedMessage}`;
   if (whisperMessage.length <= MAX_GUILD_CHAT_MESSAGE_LENGTH) {
-    sendToDarkAges([whisperMessage]).then();
+    sendToDarkAges([whisperMessage], client).then();
   } else if (sanitizedMessage.includes(" ")) {
     let words = sanitizedMessage.split(" ");
     let newMessage = `${sanitizedDisplayName}"`;
@@ -153,7 +110,7 @@ function convertDiscordMessage(
       }
     }
     messages.push(newMessage);
-    sendToDarkAges(messages).then();
+    sendToDarkAges(messages, client).then();
   } else {
     // no spaces lol
     let maxLength =
@@ -167,7 +124,7 @@ function convertDiscordMessage(
     messages.push(
       `${sanitizedDisplayName}" ${sanitizedMessage.substring(counter)}`,
     );
-    sendToDarkAges(messages).then();
+    sendToDarkAges(messages, client).then();
   }
 }
 
@@ -189,6 +146,7 @@ client.events.on(
 
     // don't force the constant tick to get regexpd
     if (message === " ") {
+      lastTick = Date.now();
       return;
       // If it's a guild chat not from the messenger Aisling, then send to discord
     } else if (
@@ -200,12 +158,16 @@ client.events.on(
       }
       sendToDiscord(message, discordGuildMessagesUrl);
       // todo: make this nicer
-      whisper(message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH)).then();
+      whisper(
+        message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH),
+        client,
+        additionalDarkAgesCharacters,
+      ).then();
     } else if (whisperRegExp.test(message)) {
       for (let messenger of additionalDarkAgesCharacters) {
         if (message.startsWith(messenger)) {
           let messageWithoutWhisperName = message.replace(`${messenger}" `, "");
-          sendToDarkAges([messageWithoutWhisperName]).then();
+          sendToDarkAges([messageWithoutWhisperName], client).then();
         }
       }
       // Send "entered Temuair" messages to discord
