@@ -18,7 +18,7 @@ import {
 // actually 64 max length, 61-64 character messages don't pop up
 const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
 const MINUTES_BETWEEN_HEALTH_CHECKS = 5;
-const MINUTES_BETWEEN_DARKAGES_WHISPER_CLEARS = 2;
+const MINUTES_BETWEEN_DARKAGES_WHISPER_CLEARS = 3;
 
 // load config
 dotenv.config();
@@ -114,9 +114,9 @@ function darkAgesClientConfig(darkAgesClient: Darkages.Client): void {
   darkAgesClient.connect();
 }
 
-let lastTick = Date.now();
 let client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
 darkAgesClientConfig(client);
+let lastTick = Date.now();
 
 setInterval(
   async () => {
