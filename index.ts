@@ -9,10 +9,16 @@ import {
 } from "discord.js";
 import { loadParam, loadParams } from "./functions/helpers";
 import { whisper, sendToDarkAges } from "./functions/darkages";
-import { convertDiscordMessage, sendToDiscord } from "./functions/discord";
+import {
+  convertDiscordMessage,
+  sendToDiscord,
+  waterSpiritRoast,
+} from "./functions/discord";
 
 // actually 64 max length, 61-64 character messages don't pop up
 const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
+const MINUTES_BETWEEN_HEALTH_CHECKS = 5;
+const MINUTES_BETWEEN_DARKAGES_WHISPER_CLEARS = 2;
 
 // load config
 dotenv.config();
@@ -32,83 +38,99 @@ const discordGuildChannelId = loadParam("DISCORD_GUILD_CHANNEL_ID");
 const discordEchoChannelIds = loadParams("DISCORD_ECHO_CHANNEL_IDS");
 const discordBotToken = loadParam("DISCORD_BOT_TOKEN");
 
-const client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
-var lastTick = Date.now();
+function darkAgesClientConfig(darkAgesClient: Darkages.Client): void {
+  // Listen for whispers and guild chats in-game
+  darkAgesClient.events.on(
+    0x0a,
+    (packet: { readByte: () => any; readString16: () => string }): void => {
+      const channel = packet.readByte();
+      const message = packet.readString16();
+      let guildChatRegExp = /^.* member .* has entered Temuair$/;
+      let newMemberRegExp = /^.* has a new member! Welcome .* to the clan$/;
+      let worldShoutRegExp = /^\[.*]: .*$/;
+      let masterRegExp =
+        /^.* has shown to be worth to wear the mantle of Master.$/;
+      let gameMasterShoutRegExp = /^\w+! .*$/;
+      let whisperRegExp = /^\w+" .*$/;
 
-// Listen for whispers and guild chats in-game
-client.events.on(
-  0x0a,
-  (packet: { readByte: () => any; readString16: () => string }): void => {
-    const channel = packet.readByte();
-    const message = packet.readString16();
-    let guildChatRegExp = /^.* member .* has entered Temuair$/;
-    let newMemberRegExp = /^.* has a new member! Welcome .* to the clan$/;
-    let worldShoutRegExp = /^\[.*]: .*$/;
-    let masterRegExp =
-      /^.* has shown to be worth to wear the mantle of Master.$/;
-    let gameMasterShoutRegExp = /^\w+! .*$/;
-    let whisperRegExp = /^\w+" .*$/;
+      console.log(`In-game message: '${message}'`);
 
-    console.log(`In-game message: '${message}'`);
-
-    // don't force the constant tick to get regexpd
-    if (message === " ") {
-      lastTick = Date.now();
-      return;
-      // If it's a guild chat not from the messenger Aisling, then send to discord
-    } else if (
-      message.startsWith("<!") &&
-      !message.startsWith(`<!${darkAgesUsername}`)
-    ) {
-      for (let url of discordMessagesUrls) {
-        sendToDiscord(message, url);
-      }
-      sendToDiscord(message, discordGuildMessagesUrl);
-      for (let messenger of additionalDarkAgesCharacters) {
-        whisper(
-          // todo: make this nicer
-          message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH),
-          darkAgesUsername,
-          client,
-        ).then();
-      }
-    } else if (whisperRegExp.test(message)) {
-      for (let messenger of additionalDarkAgesCharacters) {
-        if (message.startsWith(messenger)) {
-          for (let messenger of additionalDarkAgesCharacters) {
-            let messageWithoutWhisperName = message.replace(
-              `${messenger}" `,
-              "",
-            );
-            sendToDarkAges(messageWithoutWhisperName, client).then();
+      // don't force the constant tick to get regexpd
+      if (message === " ") {
+        lastTick = Date.now();
+        return;
+        // If it's a guild chat not from the messenger Aisling, then send to discord
+      } else if (
+        message.startsWith("<!") &&
+        !message.startsWith(`<!${darkAgesUsername}`)
+      ) {
+        for (let url of discordMessagesUrls) {
+          sendToDiscord(message, url);
+        }
+        sendToDiscord(message, discordGuildMessagesUrl);
+        for (let messenger of additionalDarkAgesCharacters) {
+          whisper(
+            // todo: make this nicer
+            message.substring(0, MAX_GUILD_CHAT_MESSAGE_LENGTH),
+            darkAgesUsername,
+            darkAgesClient,
+          ).then();
+        }
+      } else if (whisperRegExp.test(message)) {
+        for (let messenger of additionalDarkAgesCharacters) {
+          if (message.startsWith(messenger)) {
+            for (let messenger of additionalDarkAgesCharacters) {
+              let messageWithoutWhisperName = message.replace(
+                `${messenger}" `,
+                "",
+              );
+              sendToDarkAges(messageWithoutWhisperName, darkAgesClient).then();
+            }
           }
         }
+        // Send "entered Temuair" messages to discord
+      } else if (guildChatRegExp.test(message)) {
+        for (let url of discordLoginsUrls) {
+          sendToDiscord(message, url);
+        }
+        sendToDiscord(message, discordGuildLoginsUrl);
+        // Send "New member" messages to discord
+      } else if (newMemberRegExp.test(message)) {
+        for (let url of discordMessagesUrls) {
+          sendToDiscord(message, url);
+        }
+        sendToDiscord(message, discordGuildMessagesUrl);
+        // GM Shouts to discord
+      } else if (gameMasterShoutRegExp.test(message)) {
+        for (let url of discordMessagesUrls) {
+          sendToDiscord(message, url);
+        }
       }
-      // Send "entered Temuair" messages to discord
-    } else if (guildChatRegExp.test(message)) {
-      for (let url of discordLoginsUrls) {
-        sendToDiscord(message, url);
-      }
-      sendToDiscord(message, discordGuildLoginsUrl);
-      // Send "New member" messages to discord
-    } else if (newMemberRegExp.test(message)) {
-      for (let url of discordMessagesUrls) {
-        sendToDiscord(message, url);
-      }
-      sendToDiscord(message, discordGuildMessagesUrl);
-      // GM Shouts to discord
-    } else if (gameMasterShoutRegExp.test(message)) {
-      for (let url of discordMessagesUrls) {
-        sendToDiscord(message, url);
-      }
+
+      // TODO: any special whisper commands?
+    },
+  );
+  // Login the messenger Aisling in Darkages
+  darkAgesClient.connect();
+}
+
+let lastTick = Date.now();
+let client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
+darkAgesClientConfig(client);
+
+setInterval(
+  async () => {
+    // if last tick was more than x minutes ago
+    if (
+      Date.now() - lastTick >=
+      MINUTES_BETWEEN_DARKAGES_WHISPER_CLEARS * 60 * 1000
+    ) {
+      client = new Darkages.Client(darkAgesUsername, darkAgesPassword);
+      darkAgesClientConfig(client);
     }
-
-    // TODO: any special whisper commands?
   },
-);
-
-// Login the messenger Aisling in Darkages
-client.connect();
+  MINUTES_BETWEEN_HEALTH_CHECKS * 60 * 1000,
+); // minutes in milliseconds
 
 const discordClient = new Client({
   intents: [
@@ -150,9 +172,8 @@ discordClient.on(
         );
       }
       convertDiscordMessage(message, client);
+      waterSpiritRoast(message); // roast in guild-chat
     }
-
-    // waterSpiritRoast(message);
   },
 );
 
