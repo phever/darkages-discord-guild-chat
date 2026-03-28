@@ -144,7 +144,7 @@ const discordClient = new Client({
   ],
 });
 
-discordClient.once("ready", () => {
+discordClient.once("clientReady", () => {
   console.log(`Logged in as ${discordClient.user?.tag} in Discord!`);
 });
 
