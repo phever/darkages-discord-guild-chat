@@ -102,21 +102,13 @@ function darkAgesClientConfig(darkAgesClient: Darkages.Client): void {
         sendToDiscord(message, discordGuildMessagesUrl);
         // GM Shouts to discord
       } else if (gameMasterShoutRegExp.test(message)) {
-        for (let url of discordMessagesUrls) {
-          sendToDiscord(message, url);
-        }
+        sendToDiscord(message, discordGuildMessagesUrl);
       } else if (caistealAttackedRegExp.test(message)) {
-        for (let url of discordMessagesUrls) {
-          sendToDiscord(message, url);
-        }
+        sendToDiscord(message, discordGuildMessagesUrl);
       } else if (caistealConqueredRegExp.test(message)) {
-        for (let url of discordMessagesUrls) {
-          sendToDiscord(message, url);
-        }
+        sendToDiscord(message, discordGuildMessagesUrl);
       } else if (caistealDefendedRegExp.test(message)) {
-        for (let url of discordMessagesUrls) {
-          sendToDiscord(message, url);
-        }
+        sendToDiscord(message, discordGuildMessagesUrl);
       }
 
       // TODO: any special whisper commands?
