@@ -7,9 +7,9 @@ import {
   Message,
   OmitPartialGroupDMChannel,
 } from "discord.js";
-import { loadParam, loadParams } from "./functions/helpers";
-import { guildChat, sendToDarkAges, whisper } from "./functions/darkages";
-import { sendToDiscord, waterSpiritRoast } from "./functions/discord";
+import { loadParam, loadParams } from "./lib/helpers";
+import { guildChat, sendToDarkAges, whisper } from "./lib/darkages";
+import { sendToDiscord, waterSpiritRoast } from "./lib/discord";
 
 // actually 64 max length, 61-64 character messages don't pop up
 const MAX_GUILD_CHAT_MESSAGE_LENGTH = 60;
@@ -39,13 +39,17 @@ function darkAgesClientConfig(darkAgesClient: Darkages.Client): void {
   darkAgesClient.events.on(
     0x0a,
     (packet: { readByte: () => any; readString16: () => string }): void => {
-      const channel = packet.readByte();
+      const channel = packet.readByte(); // need to read the channel byte to get the message, but currently not used
       const message = packet.readString16();
       let guildChatRegExp = /^.* member .* has entered Temuair$/;
       let newMemberRegExp = /^.* has a new member! Welcome .* to the clan$/;
       let worldShoutRegExp = /^\[.*]: .*$/;
       let masterRegExp =
         /^.* has shown to be worth to wear the mantle of Master.$/;
+      let caistealAttackedRegExp = /^.* is now attacking Caisteal .*$/;
+      let caistealConqueredRegExp = /^.* have conquered Caisteal .*$/;
+      let caistealDefendedRegExp =
+        /^Caisteal .* has been successfully defended.$/;
       let gameMasterShoutRegExp = /^\w+! .*$/;
       let whisperRegExp = /^\w+" .*$/;
 
@@ -98,6 +102,18 @@ function darkAgesClientConfig(darkAgesClient: Darkages.Client): void {
         sendToDiscord(message, discordGuildMessagesUrl);
         // GM Shouts to discord
       } else if (gameMasterShoutRegExp.test(message)) {
+        for (let url of discordMessagesUrls) {
+          sendToDiscord(message, url);
+        }
+      } else if (caistealAttackedRegExp.test(message)) {
+        for (let url of discordMessagesUrls) {
+          sendToDiscord(message, url);
+        }
+      } else if (caistealConqueredRegExp.test(message)) {
+        for (let url of discordMessagesUrls) {
+          sendToDiscord(message, url);
+        }
+      } else if (caistealDefendedRegExp.test(message)) {
         for (let url of discordMessagesUrls) {
           sendToDiscord(message, url);
         }
