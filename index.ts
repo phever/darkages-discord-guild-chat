@@ -33,6 +33,7 @@ const discordLoginsUrls = loadParams("DISCORD_LOGINS_WEBHOOK_URLS");
 const discordGuildChannelId = loadParam("DISCORD_GUILD_CHANNEL_ID");
 const discordEchoChannelIds = loadParams("DISCORD_ECHO_CHANNEL_IDS");
 const discordBotToken = loadParam("DISCORD_BOT_TOKEN");
+const guildName = loadParam("GUILD_NAME");
 
 function darkAgesClientConfig(darkAgesClient: Darkages.Client): void {
   // Listen for whispers and guild chats in-game
@@ -103,12 +104,16 @@ function darkAgesClientConfig(darkAgesClient: Darkages.Client): void {
         // GM Shouts to discord
       } else if (gameMasterShoutRegExp.test(message)) {
         sendToDiscord(message, discordGuildMessagesUrl);
-      } else if (caistealAttackedRegExp.test(message)) {
-        sendToDiscord(message, discordGuildMessagesUrl);
-      } else if (caistealConqueredRegExp.test(message)) {
-        sendToDiscord(message, discordGuildMessagesUrl);
-      } else if (caistealDefendedRegExp.test(message)) {
-        sendToDiscord(message, discordGuildMessagesUrl);
+      } else if (
+        caistealAttackedRegExp.test(message) ||
+        caistealConqueredRegExp.test(message) ||
+        caistealDefendedRegExp.test(message)
+      ) {
+        if (message.includes(guildName)) {
+          sendToDiscord(message, discordGuildMessagesUrl);
+        } else {
+          sendToDiscord(message, discordGuildLoginsUrl);
+        }
       }
 
       // TODO: any special whisper commands?
